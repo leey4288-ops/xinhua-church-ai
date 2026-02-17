@@ -131,7 +131,7 @@ if prompt := st.chat_input("請輸入您的問題...", key=f"chat_input_{role_ch
     with st.chat_message("assistant"):
         try:
             model = genai.GenerativeModel(
-                model_name="gemini-1.5-flash",
+                model_name="models/gemini-1.5-flash",
                 system_instruction=str(f"{DETAILED_PROMPTS[role_choice]}\n\n{CHURCH_KNOWLEDGE}").strip()
             )
             history_data = []
