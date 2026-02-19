@@ -161,15 +161,16 @@ if final_prompt:
             # 1. 準備指令字串
             dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
 
-            # 2. 【核心修正】將指令移出 config，並使用正確的類型定義
-            # 根據最新 SDK 規範，system_instruction (單數) 是 generate_content 的頂層參數
+            # 2. 【核心修正】
+            # 將 system_instruction 移出 config，作為 generate_content 的頂層參數
+            # 這是避開 "Unknown name systemInstruction" 的唯一方法
             response = client.models.generate_content(
                 model="gemini-1.5-flash",
-                contents=final_prompt,
+                contents=[final_prompt],
+                # 關鍵：它是獨立參數，不在 config={...} 裡面
+                system_instruction=dynamic_instruction,
                 config={
                     "temperature": 0.7,
-                    "top_p": 0.95,
-                    "system_instruction": dynamic_instruction  # 移到這裡，且使用單數
                 }
             )
 
@@ -179,7 +180,6 @@ if final_prompt:
                 st.rerun()
 
         except Exception as e:
-            # 這裡會印出更詳細的錯誤，幫助我們判斷是否還有型別衝突
             st.error(f"連線狀態異常：{str(e)}")
 
 # 開場白初始化
