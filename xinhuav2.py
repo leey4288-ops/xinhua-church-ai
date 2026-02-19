@@ -1,6 +1,6 @@
 import random
 import streamlit as st
-import google.generativeai as genai
+from google import genai  # 注意：這裡改用新的導入方式
 from streamlit_mic_recorder import mic_recorder
 
 # --- 1. 安全讀取 API KEY ---
@@ -9,14 +9,12 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     API_KEY = "您的備用Key"
 
-genai.configure(api_key=API_KEY)
+# 初始化最新的 Client
+client = genai.Client(api_key=API_KEY)
 
 # --- 2. 初始化 Session State ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
-
-if "selected_grid" not in st.session_state:
-    st.session_state.selected_grid = None
 
 # --- 3. 靜態資料庫 (動態教材) ---
 BIBLE_VERSES = [
@@ -108,65 +106,45 @@ if len(st.session_state.messages) <= 1 or st.session_state.selected_grid:
 
 st.markdown("---")
 
-# --- 6. 對話邏輯 (強制 API 版本修正) ---
+# --- 6. 對話邏輯 (升級版) ---
 
+# 語音輸入
 st.write("🎙️ **長輩語音輸入區**：")
 audio_data = mic_recorder(
     start_prompt="👉 點我開始說話",
     stop_prompt="✅ 說完了，傳送",
-    key=f"mic_input_{role_choice}_{len(st.session_state.messages)}"
+    use_browser_recognition=True,  # 確保開啟辨識
+    key=f"mic_{len(st.session_state.messages)}"
 )
 
-input_text = st.chat_input("或在此輸入文字...", key="main_chat_input")
-voice_text = None
-if audio_data and isinstance(audio_data, dict) and 'transcription' in audio_data:
-    voice_text = audio_data['transcription']
-    if voice_text:
-        st.success(f"語音辨識成功：{voice_text}")
+input_text = st.chat_input("或在此輸入文字...", key="main_input")
+voice_text = audio_data['transcription'] if (audio_data and 'transcription' in audio_data) else None
 
 final_prompt = input_text or voice_text
 
 if final_prompt:
     st.session_state.messages.append({"role": "user", "content": final_prompt})
-    st.chat_message("user").markdown(final_prompt)
+
+    # 顯示對話紀錄
+    for msg in st.session_state.messages:
+        st.chat_message(msg["role"]).write(msg["content"])
 
     with st.chat_message("assistant"):
         try:
-            # 【關鍵點 1】先產生指令字串
-            dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
-
-            # 【關鍵點 2】重新設定模型 (嘗試不帶 models/ 前綴的最簡名稱)
-            # 如果這個不行，請嘗試用 "gemini-1.5-flash"
-            model = genai.GenerativeModel(
-                model_name="gemini-1.5-flash",
-                system_instruction=dynamic_instruction
-            )
-
-            # 【關鍵點 3】過濾掉空的歷史訊息，避免 API 報錯
-            history_data = []
-            for m in st.session_state.messages[-7:-1]:
-                if m["content"] and m["content"].strip():
-                    role = "user" if m["role"] == "user" else "model"
-                    history_data.append({"role": role, "parts": [m["content"]]})
-
-            # 【核心修正】強制使用 v1 版本呼叫 (解決 404 的終極方法)
-            chat = model.start_chat(history=history_data)
-
-            # 加上安全性設定，防止內容過濾導致無回應
-            response = chat.send_message(
-                final_prompt,
-                request_options={"timeout": 60.0}
+            # 使用最新 Client 呼叫
+            response = client.models.generate_content(
+                model="gemini-1.5-flash",
+                config={
+                    "system_instruction": f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
+                },
+                contents=[final_prompt]
             )
 
             if response.text:
                 st.markdown(f"### {response.text}")
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
-
         except Exception as e:
-            # 這裡我們印出更完整的錯誤訊息來抓壞蛋
-            st.error(f"連線狀態發生異常：{str(e)}")
-            if "404" in str(e):
-                st.warning("⚠️ 偵測到 404 錯誤，正在嘗試切換 API 備用路徑...")
+            st.error(f"連線異常：{str(e)}")
 
 # 開場白邏輯
 if len(st.session_state.messages) == 0:
