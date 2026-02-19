@@ -108,24 +108,28 @@ if len(st.session_state.messages) <= 1 or st.session_state.selected_grid:
 
 st.markdown("---")
 
-# --- 6. 對話邏輯 (最終相容修正版) ---
+# --- 6. 對話邏輯 (加強辨識版本) ---
 st.write("🎙️ **長輩語音輸入區** (說完請點擊按鈕)：")
 
-# 嘗試最精簡的調用方式，僅保留核心參數
-# 1. start_prompt, 2. stop_prompt, 3. just_once
-# 加上 str() 確保 key 絕對是純字串
+# 使用 explicit 的參數名稱，並確保使用瀏覽器內建辨識
+# 增加 key 的變動性，確保每次點擊都是全新的實例
 audio_data = mic_recorder(
     start_prompt="👉 點我開始說話",
     stop_prompt="✅ 說完了，傳送",
     just_once=True,
-    key=str(f"mic_rec_{role_choice}")
+    use_browser_recognition=True,  # 強制開啟瀏覽器辨識
+    key=f"voice_input_{len(st.session_state.messages)}" # 讓 key 隨對話次數變動
 )
 
 # 獲取錄音後的文字
-prompt = st.chat_input("或在此輸入文字...")
+prompt_text = st.chat_input("或在此輸入文字...")
+voice_text = None
+
 if audio_data and isinstance(audio_data, dict) and 'transcription' in audio_data:
-    if audio_data['transcription']:
-        prompt = audio_data['transcription']
+    voice_text = audio_data['transcription']
+
+# 最終判定輸入源
+final_prompt = prompt_text or voice_text
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user").markdown(prompt)
