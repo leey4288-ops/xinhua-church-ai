@@ -138,18 +138,18 @@ if final_prompt:
 
     with st.chat_message("assistant"):
         try:
-            # 【關鍵修正：先定義 instruction】
-            # 確保不管是在哪個模式，變數都會先產生
+            # 1. 確保指令字串已經定義
             dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
 
-            # 再將定義好的變數傳給模型
-            # 這裡同時修復了您剛才遇到的 404 問題，改用最穩定的模型名稱格式
+            # 2. 【核心修正】改用具體的版本日期代號，這在 v1beta 中最穩定
+            # 優先嘗試：gemini-1.5-flash-8b (輕量且額度高)
+            # 或穩定版：gemini-1.5-flash-002
             model = genai.GenerativeModel(
-                model_name="models/gemini-1.5-flash",
+                model_name="gemini-1.5-flash-002",
                 system_instruction=str(dynamic_instruction).strip()
             )
 
-            # 處理歷史紀錄
+            # 3. 限制歷史紀錄 (維持現有邏輯)
             history_data = []
             for m in st.session_state.messages[-7:-1]:
                 if m["content"].strip():
@@ -158,7 +158,7 @@ if final_prompt:
 
             chat = model.start_chat(history=history_data)
 
-            # 使用整合後的 final_prompt 進行發送
+            # 4. 發送訊息
             response = chat.send_message(str(final_prompt), request_options={"timeout": 60.0})
 
             if response.text:
@@ -166,6 +166,7 @@ if final_prompt:
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
 
         except Exception as e:
+            # 如果連線失敗，直接在畫面上印出錯誤詳細資訊輔助除錯
             st.error(f"連線狀態：{e}")
 
 # 開場白邏輯
