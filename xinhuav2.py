@@ -119,30 +119,59 @@ st.markdown("---")
 # --- 7. 輸入區 (語音 + 文字) ---
 st.write("🎙️ **長輩語音輸入區**：")
 
+# 使用最基礎的位置參數呼叫，避開 Python 3.13 的具名參數解析問題
+audio_data = mic_recorder(
+    "👉 點我開始說話",
+    "✅ 說完了，傳送",
+    f"mic_v5_{len(st.session_state.messages)}"
+)
 
+# 1. 獲取文字框輸入
+input_text = st.chat_input("或在此輸入文字...", key="main_input")
+
+# 2. 初始化語音文字變數
+voice_text = None
+if audio_data and isinstance(audio_data, dict):
+    # 使用 .get 安全讀取，避免 KeyMissing 錯誤
+    voice_text = audio_data.get('transcription')
+    if voice_text:
+        st.success(f"語音辨識成功：{voice_text}")
+
+# 3. 【核心修正】確保 final_prompt 在任何情況下都會被定義
+final_prompt = input_text or voice_text
+
+# 4. 處理對話發送
 if final_prompt:
-    # 立即將使用者的輸入加入清單並渲染
     st.session_state.messages.append({"role": "user", "content": final_prompt})
-    with st.chat_message("user"):
-        st.write(final_prompt)
+
+    # 立即渲染對話紀錄
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            if msg["role"] == "assistant":
+                st.markdown(f"### {msg['content']}")
+            else:
+                st.write(msg["content"])
 
     with st.chat_message("assistant"):
-        with st.spinner("同工正在思考中..."):
-            try:
-                response = client.models.generate_content(
-                    model="gemini-1.5-flash",
-                    config={
-                        "system_instruction": f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
-                    },
-                    contents=[final_prompt]
-                )
+        try:
+            # 根據模式動態讀取指令
+            dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
 
-                if response.text:
-                    st.markdown(f"### {response.text}")
-                    st.session_state.messages.append({"role": "assistant", "content": response.text})
-                    st.rerun() # 重新整理以確保 UI 更新正確
-            except Exception as e:
-                st.error(f"連線異常，請稍後再試：{str(e)}")
+            # 使用最新的 google-genai 呼叫方式 [cite: 7, 8]
+            response = client.models.generate_content(
+                model="gemini-1.5-flash",
+                config={"system_instruction": dynamic_instruction},
+                contents=[final_prompt]
+            )
+
+            if response.text:
+                st.markdown(f"### {response.text}")
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
+                # 強制刷新頁面以更新 UI
+                st.rerun()
+
+        except Exception as e:
+            st.error(f"連線異常：{str(e)}")
 
 # 開場白初始化
 if len(st.session_state.messages) == 0:
