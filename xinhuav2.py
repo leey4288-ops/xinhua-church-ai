@@ -109,6 +109,19 @@ if len(st.session_state.messages) <= 1 or st.session_state.selected_grid:
 st.markdown("---")
 
 # --- 6. 對話邏輯 (加入語音輸入) ---
+
+st.write("🎙️ **長輩語音輸入區** (說完請點擊下方按鈕)：")
+
+# 使用更精簡且相容性更高的參數設定
+audio_data = mic_recorder(
+    start_prompt="👉 點我開始說話",
+    stop_prompt="✅ 說完了，傳送",
+    just_once=True,
+    use_browser_recognition=True,
+    key=f"recorder_{role_choice}"  # 加入角色名稱確保 Key 在切換模式時是唯一的
+)
+
+
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).markdown(f"### {msg['content']}" if msg["role"] == "assistant" else msg["content"])
 
