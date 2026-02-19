@@ -108,40 +108,24 @@ if len(st.session_state.messages) <= 1 or st.session_state.selected_grid:
 
 st.markdown("---")
 
-# --- 6. 對話邏輯 (加入語音輸入) ---
-
-st.write("🎙️ **長輩語音輸入區** (說完請點擊下方按鈕)：")
-
-# 使用更精簡且相容性更高的參數設定
+# --- 6. 對話邏輯 (最終相容修正版) ---
 st.write("🎙️ **長輩語音輸入區** (說完請點擊按鈕)：")
 
-# 採用最精簡的參數組合，避免部分版本不支援特定命名參數
+# 嘗試最精簡的調用方式，僅保留核心參數
+# 1. start_prompt, 2. stop_prompt, 3. just_once
+# 加上 str() 確保 key 絕對是純字串
 audio_data = mic_recorder(
     start_prompt="👉 點我開始說話",
     stop_prompt="✅ 說完了，傳送",
     just_once=True,
-    use_browser_recognition=True,
-    key=f"mic_{role_choice}"  # 修改 key 命名方式，避免與之前衝突
+    key=str(f"mic_rec_{role_choice}")
 )
 
-for msg in st.session_state.messages:
-    st.chat_message(msg["role"]).markdown(f"### {msg['content']}" if msg["role"] == "assistant" else msg["content"])
-
-# 語音錄音器
-st.write("🎙️ **長輩語音輸入區** (說完請點擊『停止並傳送』)：")
-audio_data = mic_recorder(
-    start_prompt="👉 點我開始說話",
-    stop_prompt="✅ 說完了，傳送",
-    just_once=True,
-    use_browser_recognition=True,  # 使用瀏覽器語音辨識
-    key='recorder'
-)
-
-# 獲取語音或文字輸入
+# 獲取錄音後的文字
 prompt = st.chat_input("或在此輸入文字...")
-if audio_data and 'transcription' in audio_data:
-    prompt = audio_data['transcription']
-
+if audio_data and isinstance(audio_data, dict) and 'transcription' in audio_data:
+    if audio_data['transcription']:
+        prompt = audio_data['transcription']
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user").markdown(prompt)
