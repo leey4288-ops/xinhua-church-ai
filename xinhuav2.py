@@ -119,22 +119,27 @@ st.markdown("---")
 # --- 7. 輸入區 (語音 + 文字) ---
 st.write("🎙️ **長輩語音輸入區**：")
 
-# 修正重點：明確標註所有參數名稱，並確保 key 是唯一的字串
+# 修正重點：
+# 1. 全部參數使用「名稱=值」的寫法 (具名參數)
+# 2. 加入 just_once=True 確保錄音行為符合預期
+# 3. 確保 key 的生成邏輯在所有模式下都一致
 audio_data = mic_recorder(
     start_prompt="👉 點我開始說話",
     stop_prompt="✅ 說完了，傳送",
-    just_once=True,           # 確保錄音完即停止
+    just_once=True,
     use_browser_recognition=True,
-    key=f"mic_rec_{len(st.session_state.messages)}"
+    key=f"mic_rec_v3_{role_choice}_{len(st.session_state.messages)}"
 )
 
 # 獲取輸入
 input_text = st.chat_input("或在此輸入文字...", key="main_input")
 voice_text = None
 
-# 安全讀取語音轉寫內容
-if isinstance(audio_data, dict) and 'transcription' in audio_data:
+# 【關鍵防錯】確保 audio_data 不是 None 且格式正確才讀取
+if audio_data and isinstance(audio_data, dict) and 'transcription' in audio_data:
     voice_text = audio_data['transcription']
+    if voice_text:
+        st.success(f"語音辨識成功：{voice_text}")
 
 final_prompt = input_text or voice_text
 
