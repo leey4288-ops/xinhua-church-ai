@@ -140,7 +140,7 @@ if final_prompt:
         try:
             # 根據模式動態讀取知識庫 (Token 優化)
             dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
-            model = genai.GenerativeModel(model_name="models/gemini-1.5-flash", system_instruction=dynamic_instruction)
+            model = genai.GenerativeModel(model_name="gemini-1.5-flash-latest", system_instruction=dynamic_instruction)
 
             # 限制歷史長度
             history_data = []
