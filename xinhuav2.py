@@ -108,42 +108,41 @@ if len(st.session_state.messages) <= 1 or st.session_state.selected_grid:
 
 st.markdown("---")
 
-# --- 6. 對話邏輯 (穩定相容版本) ---
-st.write("🎙️ **長輩語音輸入區**：")
+# --- 6. 對話邏輯 (變數名稱一致化版本) ---
 
-# 1. 簡化參數，只保留最核心的 start/stop 與 key
-# 2. 移除 use_browser_recognition 參數，因為某些版本會因此產生 TypeError
+st.write("🎙️ **長輩語音輸入區**：")
 audio_data = mic_recorder(
     start_prompt="👉 點我開始說話",
     stop_prompt="✅ 說完了，傳送",
     key=f"mic_input_{role_choice}_{len(st.session_state.messages)}"
 )
 
-# 初始化輸入變數
-prompt = st.chat_input("或在此輸入文字...")
+# 1. 先獲取文字框的輸入，並給予固定 Key 避免 Duplicate ID
+input_text = st.chat_input("或在此輸入文字...", key="main_chat_input")
 
-# 檢查是否有錄音數據
-if audio_data:
-    # 優先嘗試獲取轉寫文字
-    if isinstance(audio_data, dict) and 'transcription' in audio_data:
-        if audio_data['transcription']:
-            prompt = audio_data['transcription']
-            st.success(f"語音辨識成功：{prompt}")
+# 2. 獲取語音轉寫文字
+voice_text = None
+if audio_data and isinstance(audio_data, dict) and 'transcription' in audio_data:
+    voice_text = audio_data['transcription']
+    if voice_text:
+        st.success(f"語音辨識成功：{voice_text}")
 
+# 3. 【核心修正】將兩者整合為一個 final_prompt
+# 如果 input_text 有值就用它，否則用 voice_text
+final_prompt = input_text or voice_text
 
-
-# 最終判定輸入源
-final_prompt = prompt_text or voice_text
-if prompt:
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    st.chat_message("user").markdown(prompt)
+# 4. 處理對話發送
+if final_prompt:
+    st.session_state.messages.append({"role": "user", "content": final_prompt})
+    st.chat_message("user").markdown(final_prompt)
 
     with st.chat_message("assistant"):
         try:
+            # 根據模式動態讀取知識庫 (Token 優化)
             dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
             model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=dynamic_instruction)
 
-            # 限制歷史長度節省 Token
+            # 限制歷史長度
             history_data = []
             for m in st.session_state.messages[-7:-1]:
                 if m["content"].strip():
@@ -151,10 +150,10 @@ if prompt:
                     history_data.append({"role": role, "parts": [str(m["content"])]})
 
             chat = model.start_chat(history=history_data)
-            response = chat.send_message(str(prompt), request_options={"timeout": 60.0})
+            response = chat.send_message(str(final_prompt), request_options={"timeout": 60.0})
 
             if response.text:
-                st.markdown(f"### {response.text}")  # AI 回覆也加大顯示
+                st.markdown(f"### {response.text}")
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
 
         except Exception as e:
