@@ -158,16 +158,18 @@ if final_prompt:
 
     with st.chat_message("assistant"):
         try:
+            # 1. 準備指令字串
             dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
 
-            # 修正點：使用最標準的模型名稱，不帶 models/ 前綴
+            # 2. 【核心修正】將 system_instruction 改為 system_instructions (複數)
+            # 並且確保它是放在 GenerateConfig 物件中
             response = client.models.generate_content(
                 model="gemini-1.5-flash",
+                contents=[final_prompt],
                 config={
-                    "system_instruction": dynamic_instruction,
+                    "system_instructions": dynamic_instruction,  # 注意這裡有個 's'
                     "temperature": 0.7
-                },
-                contents=[final_prompt]
+                }
             )
 
             if response and response.text:
