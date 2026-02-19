@@ -9,13 +9,17 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     API_KEY = "您的備用Key"
 
-client = genai.Client(api_key=API_KEY)
+client = genai.Client(
+    api_key=API_KEY,
+    http_options={'api_version': 'v1'} # 強制避開 v1beta 的 404 問題
+)
 
 # --- 2. 初始化 Session State (增強防護) ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "selected_grid" not in st.session_state:
     st.session_state.selected_grid = None
+
 
 # --- 3. 靜態資料庫 (維持現狀) ---
 BIBLE_VERSES = [
@@ -154,18 +158,16 @@ if final_prompt:
 
     with st.chat_message("assistant"):
         try:
-            # 1. 確保指令字串存在
             dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
 
-            # 2. 【核心修正】在模型名稱前補上 models/
-            # 這是為了解決某些 API 節點無法識別簡稱的問題
+            # 修正點：使用最標準的模型名稱，不帶 models/ 前綴
             response = client.models.generate_content(
-                model="gemini-2.0-flash-exp",
+                model="gemini-1.5-flash",
                 config={
                     "system_instruction": dynamic_instruction,
-                    "temperature": 0.7,
+                    "temperature": 0.7
                 },
-                contents=[str(final_prompt)]  # 強制轉為字串避免型別錯誤
+                contents=[final_prompt]
             )
 
             if response and response.text:
@@ -174,7 +176,6 @@ if final_prompt:
                 st.rerun()
 
         except Exception as e:
-            # 輸出更詳細的錯誤資訊
             st.error(f"連線狀態異常：{str(e)}")
 
 # 開場白初始化
