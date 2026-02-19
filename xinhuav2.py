@@ -130,12 +130,7 @@ if audio_data:
             prompt = audio_data['transcription']
             st.success(f"語音辨識成功：{prompt}")
 
-# 獲取錄音後的文字
-prompt_text = st.chat_input("或在此輸入文字...")
-voice_text = None
 
-if audio_data and isinstance(audio_data, dict) and 'transcription' in audio_data:
-    voice_text = audio_data['transcription']
 
 # 最終判定輸入源
 final_prompt = prompt_text or voice_text
