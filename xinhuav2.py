@@ -117,16 +117,24 @@ for msg in st.session_state.messages:
 st.markdown("---")
 
 # --- 7. 輸入區 (語音 + 文字) ---
-st.write("🎙️ **長輩按這裡說話：**")
+st.write("🎙️ **長輩語音輸入區**：")
+
+# 修正重點：明確標註所有參數名稱，並確保 key 是唯一的字串
 audio_data = mic_recorder(
     start_prompt="👉 點我開始說話",
     stop_prompt="✅ 說完了，傳送",
+    just_once=True,           # 確保錄音完即停止
     use_browser_recognition=True,
-    key=f"mic_{len(st.session_state.messages)}"
+    key=f"mic_rec_{len(st.session_state.messages)}"
 )
 
+# 獲取輸入
 input_text = st.chat_input("或在此輸入文字...", key="main_input")
-voice_text = audio_data['transcription'] if (audio_data and 'transcription' in audio_data) else None
+voice_text = None
+
+# 安全讀取語音轉寫內容
+if isinstance(audio_data, dict) and 'transcription' in audio_data:
+    voice_text = audio_data['transcription']
 
 final_prompt = input_text or voice_text
 
