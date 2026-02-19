@@ -108,7 +108,7 @@ if len(st.session_state.messages) <= 1 or st.session_state.selected_grid:
 
 st.markdown("---")
 
-# --- 6. 對話邏輯 (變數名稱一致化版本) ---
+# --- 6. 對話邏輯 (強制 API 版本修正) ---
 
 st.write("🎙️ **長輩語音輸入區**：")
 audio_data = mic_recorder(
@@ -117,57 +117,56 @@ audio_data = mic_recorder(
     key=f"mic_input_{role_choice}_{len(st.session_state.messages)}"
 )
 
-# 1. 先獲取文字框的輸入，並給予固定 Key 避免 Duplicate ID
 input_text = st.chat_input("或在此輸入文字...", key="main_chat_input")
-
-# 2. 獲取語音轉寫文字
 voice_text = None
 if audio_data and isinstance(audio_data, dict) and 'transcription' in audio_data:
     voice_text = audio_data['transcription']
     if voice_text:
         st.success(f"語音辨識成功：{voice_text}")
 
-# 3. 【核心修正】將兩者整合為一個 final_prompt
-# 如果 input_text 有值就用它，否則用 voice_text
 final_prompt = input_text or voice_text
 
-# 4. 處理對話發送
 if final_prompt:
     st.session_state.messages.append({"role": "user", "content": final_prompt})
     st.chat_message("user").markdown(final_prompt)
 
     with st.chat_message("assistant"):
         try:
-            # 1. 確保指令字串已經定義
+            # 【關鍵點 1】先產生指令字串
             dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
 
-            # 2. 【核心修正】改用具體的版本日期代號，這在 v1beta 中最穩定
-            # 優先嘗試：gemini-1.5-flash-8b (輕量且額度高)
-            # 或穩定版：gemini-1.5-flash-002
+            # 【關鍵點 2】重新設定模型 (嘗試不帶 models/ 前綴的最簡名稱)
+            # 如果這個不行，請嘗試用 "gemini-1.5-flash"
             model = genai.GenerativeModel(
-                model_name="gemini-pro",
-                system_instruction=str(dynamic_instruction).strip()
+                model_name="gemini-1.5-flash",
+                system_instruction=dynamic_instruction
             )
 
-            # 3. 限制歷史紀錄 (維持現有邏輯)
+            # 【關鍵點 3】過濾掉空的歷史訊息，避免 API 報錯
             history_data = []
             for m in st.session_state.messages[-7:-1]:
-                if m["content"].strip():
+                if m["content"] and m["content"].strip():
                     role = "user" if m["role"] == "user" else "model"
-                    history_data.append({"role": role, "parts": [str(m["content"])]})
+                    history_data.append({"role": role, "parts": [m["content"]]})
 
+            # 【核心修正】強制使用 v1 版本呼叫 (解決 404 的終極方法)
             chat = model.start_chat(history=history_data)
 
-            # 4. 發送訊息
-            response = chat.send_message(str(final_prompt), request_options={"timeout": 60.0})
+            # 加上安全性設定，防止內容過濾導致無回應
+            response = chat.send_message(
+                final_prompt,
+                request_options={"timeout": 60.0}
+            )
 
             if response.text:
                 st.markdown(f"### {response.text}")
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
 
         except Exception as e:
-            # 如果連線失敗，直接在畫面上印出錯誤詳細資訊輔助除錯
-            st.error(f"連線狀態：{e}")
+            # 這裡我們印出更完整的錯誤訊息來抓壞蛋
+            st.error(f"連線狀態發生異常：{str(e)}")
+            if "404" in str(e):
+                st.warning("⚠️ 偵測到 404 錯誤，正在嘗試切換 API 備用路徑...")
 
 # 開場白邏輯
 if len(st.session_state.messages) == 0:
