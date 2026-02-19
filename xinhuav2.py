@@ -145,7 +145,7 @@ if final_prompt:
             # 再將定義好的變數傳給模型
             # 這裡同時修復了您剛才遇到的 404 問題，改用最穩定的模型名稱格式
             model = genai.GenerativeModel(
-                model_name="gemini-1.5-flash",
+                model_name="models/gemini-1.5-flash",
                 system_instruction=str(dynamic_instruction).strip()
             )
 
