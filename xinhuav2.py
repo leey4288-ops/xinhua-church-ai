@@ -145,7 +145,7 @@ if final_prompt:
             # 優先嘗試：gemini-1.5-flash-8b (輕量且額度高)
             # 或穩定版：gemini-1.5-flash-002
             model = genai.GenerativeModel(
-                model_name="gemini-1.5-flash-002",
+                model_name="gemini-pro",
                 system_instruction=str(dynamic_instruction).strip()
             )
 
