@@ -160,7 +160,7 @@ if final_prompt:
             # 2. 【核心修正】在模型名稱前補上 models/
             # 這是為了解決某些 API 節點無法識別簡稱的問題
             response = client.models.generate_content(
-                model="models/gemini-1.5-flash",
+                model="gemini-2.0-flash-exp",
                 config={
                     "system_instruction": dynamic_instruction,
                     "temperature": 0.7,
