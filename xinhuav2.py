@@ -161,14 +161,14 @@ if final_prompt:
             # 1. 準備指令字串
             dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
 
-            # 2. 【核心修正】
-            # a. system_instructions 必須是 List 格式: [指令字串]
-            # b. 直接將 config 參數傳入，確保符合 Pydantic 驗證
+            # 2. 【核心修正】將 system_instruction 移出 config，改為直接參數
+            # 注意：這裡使用單數 system_instruction
             response = client.models.generate_content(
                 model="gemini-1.5-flash",
                 contents=[final_prompt],
+                # 關鍵：system_instruction 與 config 平級
+                system_instruction=dynamic_instruction,
                 config={
-                    "system_instructions": [dynamic_instruction],  # 修正：包裝成 List
                     "temperature": 0.7
                 }
             )
