@@ -138,13 +138,18 @@ if final_prompt:
 
     with st.chat_message("assistant"):
         try:
-            # 修正點：將模型名稱改為標準的完整路徑
-            # 建議優先嘗試 "models/gemini-1.5-flash"
+            # 【關鍵修正：先定義 instruction】
+            # 確保不管是在哪個模式，變數都會先產生
+            dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
+
+            # 再將定義好的變數傳給模型
+            # 這裡同時修復了您剛才遇到的 404 問題，改用最穩定的模型名稱格式
             model = genai.GenerativeModel(
-                model_name="models/gemini-1.5-flash",
-                system_instruction=dynamic_instruction
+                model_name="gemini-1.5-flash",
+                system_instruction=str(dynamic_instruction).strip()
             )
-            # 限制歷史長度
+
+            # 處理歷史紀錄
             history_data = []
             for m in st.session_state.messages[-7:-1]:
                 if m["content"].strip():
@@ -152,6 +157,8 @@ if final_prompt:
                     history_data.append({"role": role, "parts": [str(m["content"])]})
 
             chat = model.start_chat(history=history_data)
+
+            # 使用整合後的 final_prompt 進行發送
             response = chat.send_message(str(final_prompt), request_options={"timeout": 60.0})
 
             if response.text:
