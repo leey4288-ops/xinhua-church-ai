@@ -167,10 +167,10 @@ if final_prompt:
             response = client.models.generate_content(
                 model="gemini-1.5-flash",
                 contents=[final_prompt],
-                # 關鍵：它是獨立參數，不在 config={...} 裡面
-                system_instruction=dynamic_instruction,
                 config={
                     "temperature": 0.7,
+                    # 在最新 Pydantic 模型中，將系統指令放在 config 內，但需確保名稱正確
+                    "system_instruction": dynamic_instruction
                 }
             )
 
