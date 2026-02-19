@@ -1,6 +1,6 @@
 import random
 import streamlit as st
-from google import genai  # 注意：這裡改用新的導入方式
+from google import genai
 from streamlit_mic_recorder import mic_recorder
 
 # --- 1. 安全讀取 API KEY ---
@@ -9,14 +9,15 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     API_KEY = "您的備用Key"
 
-# 初始化最新的 Client
 client = genai.Client(api_key=API_KEY)
 
-# --- 2. 初始化 Session State ---
+# --- 2. 初始化 Session State (增強防護) ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "selected_grid" not in st.session_state:
+    st.session_state.selected_grid = None
 
-# --- 3. 靜態資料庫 (動態教材) ---
+# --- 3. 靜態資料庫 (維持現狀) ---
 BIBLE_VERSES = [
     "「應當一無掛慮，只要凡事藉著禱告、祈求，和感謝，將你們所要的告訴神。」— 腓立比書 4:6",
     "「你的話是我腳前的燈，是我路上的光。」— 詩篇 119:105",
@@ -41,38 +42,43 @@ DETAILED_PROMPTS = {
 with st.sidebar:
     st.image("https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=1000", caption="新化長老教會")
     st.title("⛪ 服事選單")
-    role_choice = st.radio("選擇模式：", list(DETAILED_PROMPTS.keys()))
+    role_choice = st.radio("選擇模式：", list(DETAILED_PROMPTS.keys()), key="role_radio")
 
     st.markdown("---")
+    # 這裡加入一個簡單的模式說明，幫助同工理解
+    st.info(f"目前正在使用：**{role_choice}** 模式")
+
     if role_choice == "門徒裝備":
         st.subheader("🛠️ 門徒 12 格圖導覽")
-        grids_12 = ["01 生命主權", "02 讀經靈修", "03 禱告生活", "04 團契生活", "05 聖潔生活", "06 見證分享",
-                    "07 事奉人生", "08 奉獻生活", "09 屬靈爭戰", "10 大使命", "11 肢體連結", "12 永恆盼望"]
+        grids = ["01 生命主權", "02 讀經靈修", "03 禱告生活", "04 團契生活", "05 聖潔生活", "06 見證分享",
+                 "07 事奉人生", "08 奉獻生活", "09 屬靈爭戰", "10 大使命", "11 肢體連結", "12 永恆盼望"]
         cols = st.columns(2)
-        for i, title in enumerate(grids_12):
-            if cols[i % 2].button(title, key=f"btn_{role_choice}_{i}", use_container_width=True):
+        for i, title in enumerate(grids):
+            if cols[i % 2].button(title, key=f"btn_12_{i}", use_container_width=True):
                 st.session_state.selected_grid = {"type": "門徒", "title": title}
-                st.session_state.messages.append({"role": "assistant", "content": f"已切換至：**門徒裝備 - {title}**"})
+                st.session_state.messages.append({"role": "assistant", "content": f"好的，我們來聊聊 **{title}**。"})
                 st.rerun()
     elif role_choice == "福音陪談":
         st.subheader("🎨 福音 10 格圖導覽")
-        grids_10 = ["01 創造", "02 墮落", "03 審判", "04 律法", "05 基督", "06 救贖", "07 復活", "08 信心", "09 重生",
-                    "10 永生"]
+        grids = ["01 創造", "02 墮落", "03 審判", "04 律法", "05 基督", "06 救贖", "07 復活", "08 信心", "09 重生", "10 永生"]
         cols = st.columns(2)
-        for i, title in enumerate(grids_10):
-            if cols[i % 2].button(title, key=f"btn_{role_choice}_{i}", use_container_width=True):
+        for i, title in enumerate(grids):
+            if cols[i % 2].button(title, key=f"btn_10_{i}", use_container_width=True):
                 st.session_state.selected_grid = {"type": "福音", "title": title}
-                st.session_state.messages.append({"role": "assistant", "content": f"已切換至：**福音十格圖 - {title}**"})
+                st.session_state.messages.append({"role": "assistant", "content": f"好的，關於福音十格圖中的 **{title}**..."})
                 st.rerun()
 
     st.markdown("---")
-    if st.sidebar.button("🔄 清除對話紀錄"):
+    if st.sidebar.button("🔄 清除對話紀錄", use_container_width=True):
         st.session_state.messages = []
         st.session_state.selected_grid = None
         st.rerun()
 
-# --- 5. 主頁面渲染 (加大字體) ---
-if len(st.session_state.messages) <= 1 or st.session_state.selected_grid:
+# --- 5. 主頁面渲染 ---
+# 使用安全獲取方式
+selected_grid = st.session_state.get("selected_grid")
+
+if len(st.session_state.messages) <= 1 or selected_grid:
     daily_verse = random.choice(BIBLE_VERSES)
     UI_THEME = {
         "福音陪談": {"color": "#E8F5E9", "border": "#4CAF50", "icon": "🌱", "title": "心靈午茶 - 福音陪談"},
@@ -82,17 +88,12 @@ if len(st.session_state.messages) <= 1 or st.session_state.selected_grid:
     theme = UI_THEME[role_choice]
 
     display_title = theme['title']
-    display_content = "請選擇左側教材開始學習，或是直接跟數位同工聊天。"
+    display_content = "可以直接點選左側教材，或在下方用「說」的跟我聊天喔！"
 
-    if st.session_state.selected_grid:
-        grid = st.session_state.selected_grid
-        display_title = f"{grid['type']}裝備：{grid['title']}"
-        display_content = f"正在學習 **{grid['title']}**。您可以詢問相關經文或實踐方法。"
-        if st.button("⬅️ 回到首頁"):
-            st.session_state.selected_grid = None
-            st.rerun()
+    if selected_grid:
+        display_title = f"{selected_grid['title']}"
+        display_content = f"正在與您一同探討 **{selected_grid['title']}** 的真理。"
 
-    # 加大內容字體 (1.3em)
     st.markdown(f"""
     <div style="background-color: {theme['color']}; padding: 25px; border-radius: 15px; border-left: 8px solid {theme['border']}; margin-bottom: 20px;">
         <h2 style="color: {theme['border']}; margin-top: 0;">{theme['icon']} {display_title}</h2>
@@ -104,16 +105,23 @@ if len(st.session_state.messages) <= 1 or st.session_state.selected_grid:
     </div>
     """, unsafe_allow_html=True)
 
+# --- 6. 對話顯示區 ---
+# 先顯示歷史紀錄，確保順序正確
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        if msg["role"] == "assistant":
+            st.markdown(f"### {msg['content']}")
+        else:
+            st.write(msg["content"])
+
 st.markdown("---")
 
-# --- 6. 對話邏輯 (升級版) ---
-
-# 語音輸入
-st.write("🎙️ **長輩語音輸入區**：")
+# --- 7. 輸入區 (語音 + 文字) ---
+st.write("🎙️ **長輩按這裡說話：**")
 audio_data = mic_recorder(
     start_prompt="👉 點我開始說話",
     stop_prompt="✅ 說完了，傳送",
-    use_browser_recognition=True,  # 確保開啟辨識
+    use_browser_recognition=True,
     key=f"mic_{len(st.session_state.messages)}"
 )
 
@@ -123,33 +131,35 @@ voice_text = audio_data['transcription'] if (audio_data and 'transcription' in a
 final_prompt = input_text or voice_text
 
 if final_prompt:
+    # 立即將使用者的輸入加入清單並渲染
     st.session_state.messages.append({"role": "user", "content": final_prompt})
-
-    # 顯示對話紀錄
-    for msg in st.session_state.messages:
-        st.chat_message(msg["role"]).write(msg["content"])
+    with st.chat_message("user"):
+        st.write(final_prompt)
 
     with st.chat_message("assistant"):
-        try:
-            # 使用最新 Client 呼叫
-            response = client.models.generate_content(
-                model="gemini-1.5-flash",
-                config={
-                    "system_instruction": f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
-                },
-                contents=[final_prompt]
-            )
+        with st.spinner("同工正在思考中..."):
+            try:
+                response = client.models.generate_content(
+                    model="gemini-1.5-flash",
+                    config={
+                        "system_instruction": f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
+                    },
+                    contents=[final_prompt]
+                )
 
-            if response.text:
-                st.markdown(f"### {response.text}")
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
-        except Exception as e:
-            st.error(f"連線異常：{str(e)}")
+                if response.text:
+                    st.markdown(f"### {response.text}")
+                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+                    st.rerun() # 重新整理以確保 UI 更新正確
+            except Exception as e:
+                st.error(f"連線異常，請稍後再試：{str(e)}")
 
-# 開場白邏輯
+# 開場白初始化
 if len(st.session_state.messages) == 0:
-    greetings = {"福音陪談": "平安！我是新化教會的數位同工，想聊聊信仰嗎？",
-                 "新朋友導覽": "歡迎！想了解教會環境還是聚會時間呢？",
-                 "門徒裝備": "弟兄姊妹平安！今天想學習哪一部分的教材？"}
+    greetings = {
+        "福音陪談": "平安！我是新化教會的數位同工，很高興能陪您聊天。今天想聊聊信仰嗎？",
+        "新朋友導覽": "歡迎來到新化長老教會！我是數位接待員，有什麼我可以幫您的嗎？",
+        "門徒裝備": "弟兄姊妹平安！今天想在哪個真理上紮根學習呢？"
+    }
     st.session_state.messages.append({"role": "assistant", "content": greetings[role_choice]})
     st.rerun()
