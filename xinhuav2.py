@@ -138,10 +138,12 @@ if final_prompt:
 
     with st.chat_message("assistant"):
         try:
-            # 根據模式動態讀取知識庫 (Token 優化)
-            dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
-            model = genai.GenerativeModel(model_name="gemini-1.5-flash-latest", system_instruction=dynamic_instruction)
-
+            # 修正點：將模型名稱改為標準的完整路徑
+            # 建議優先嘗試 "models/gemini-1.5-flash"
+            model = genai.GenerativeModel(
+                model_name="models/gemini-1.5-flash",
+                system_instruction=dynamic_instruction
+            )
             # 限制歷史長度
             history_data = []
             for m in st.session_state.messages[-7:-1]:
