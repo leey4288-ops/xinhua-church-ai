@@ -113,14 +113,16 @@ st.markdown("---")
 st.write("🎙️ **長輩語音輸入區** (說完請點擊下方按鈕)：")
 
 # 使用更精簡且相容性更高的參數設定
+st.write("🎙️ **長輩語音輸入區** (說完請點擊按鈕)：")
+
+# 採用最精簡的參數組合，避免部分版本不支援特定命名參數
 audio_data = mic_recorder(
     start_prompt="👉 點我開始說話",
     stop_prompt="✅ 說完了，傳送",
     just_once=True,
     use_browser_recognition=True,
-    key=f"recorder_{role_choice}"  # 加入角色名稱確保 Key 在切換模式時是唯一的
+    key=f"mic_{role_choice}"  # 修改 key 命名方式，避免與之前衝突
 )
-
 
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).markdown(f"### {msg['content']}" if msg["role"] == "assistant" else msg["content"])
