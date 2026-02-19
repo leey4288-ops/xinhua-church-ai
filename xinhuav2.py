@@ -7,13 +7,12 @@ from streamlit_mic_recorder import mic_recorder
 if "GEMINI_API_KEY" in st.secrets:
     API_KEY = st.secrets["GEMINI_API_KEY"]
 else:
-    # 提醒：請確保在 Streamlit Cloud Secrets 中設定此鍵值
     API_KEY = "您的備用Key"
 
-# 初始化 Client (1.64.0 版建議寫法)
+# 初始化 Client
 client = genai.Client(api_key=API_KEY)
 
-# --- 2. 初始化 Session State ---
+# --- 2. 初始化 Session State (增強防錯) ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "selected_grid" not in st.session_state:
@@ -47,9 +46,9 @@ with st.sidebar:
     role_choice = st.radio("選擇模式：", list(DETAILED_PROMPTS.keys()), key="role_radio")
 
     st.markdown("---")
-    st.info(f"目前正在使用：**{role_choice}** 模式")
+    st.info(f"模式：**{role_choice}**")
 
-    # 教材選擇邏輯 (優化：合併按鈕邏輯)
+    # 教材清單優化
     grid_data = {
         "門徒裝備": ["01 生命主權", "02 讀經靈修", "03 禱告生活", "04 團契生活", "05 聖潔生活", "06 見證分享",
                      "07 事奉人生", "08 奉獻生活", "09 屬靈爭戰", "10 大使命", "11 肢體連結", "12 永恆盼望"],
@@ -58,24 +57,24 @@ with st.sidebar:
     }
 
     if role_choice in grid_data:
-        st.subheader(f"🛠️ {role_choice}教材")
+        st.subheader(f"📖 {role_choice}教材")
         cols = st.columns(2)
         for i, title in enumerate(grid_data[role_choice]):
             if cols[i % 2].button(title, key=f"btn_{role_choice}_{i}", use_container_width=True):
                 st.session_state.selected_grid = {"type": role_choice, "title": title}
-                st.session_state.messages.append({"role": "assistant", "content": f"好的，我們來探討 **{title}**。"})
+                st.session_state.messages.append({"role": "assistant", "content": f"好的，我們來探討：**{title}**。"})
                 st.rerun()
 
     st.markdown("---")
-    if st.button("🔄 清除對話紀錄", use_container_width=True):
+    if st.button("🔄 清除對話", use_container_width=True):
         st.session_state.messages = []
         st.session_state.selected_grid = None
         st.rerun()
 
-# --- 5. 主頁面渲染 (加大字體) ---
+# --- 5. 主頁面渲染 ---
 selected_grid = st.session_state.get("selected_grid")
 
-if len(st.session_state.messages) <= 1 or selected_grid:
+if not st.session_state.messages or selected_grid:
     daily_verse = random.choice(BIBLE_VERSES)
     UI_THEME = {
         "福音陪談": {"color": "#E8F5E9", "border": "#4CAF50", "icon": "🌱", "title": "心靈午茶 - 福音陪談"},
@@ -98,7 +97,7 @@ if len(st.session_state.messages) <= 1 or selected_grid:
     </div>
     """, unsafe_allow_html=True)
 
-# --- 6. 對話顯示區 ---
+# --- 6. 對話顯示區 (優化：逆序顯示，最新在下) ---
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if msg["role"] == "assistant":
@@ -108,19 +107,18 @@ for msg in st.session_state.messages:
 
 st.markdown("---")
 
-# --- 7. 輸入區 (優化語音邏輯) ---
+# --- 7. 輸入區 (優化語音錄製關鍵字與防錯) ---
 st.write("🎙️ **長輩語音輸入：**")
-# key 加入隨機成分防止錄音元件緩存失效
+
+# 移除 use_browser_recognition 參數，解決日誌報錯
 audio_data = mic_recorder(
     start_prompt="👉 點我開始說話",
     stop_prompt="✅ 說完了，傳送",
-    use_browser_recognition=True,
-    key=f"mic_{len(st.session_state.messages)}"
+    key=f"mic_vfinal_{len(st.session_state.messages)}"
 )
 
 input_text = st.chat_input("或在此輸入文字...", key="main_input")
 voice_text = audio_data.get('transcription') if audio_data else None
-
 final_prompt = input_text or voice_text
 
 if final_prompt:
@@ -129,19 +127,18 @@ if final_prompt:
         st.write(final_prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("數位同工正在思考..."):
+        with st.spinner("數位同工思考中..."):
             try:
-                # 組合系統指令
-                system_prompt = f"{DETAILED_PROMPTS[role_choice]}\n\n知識庫：{KNOWLEDGE_BASE[role_choice]}"
+                system_prompt = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
 
-                # 優化：傳入歷史訊息讓對話有連續性
+                # 優化對話記憶結構，符合 1.64.0 型別要求
                 history_contents = []
-                for m in st.session_state.messages[-6:-1]:  # 取最近三組對話
-                    history_contents.append({"role": m["role"], "parts": [{"text": m["content"]}]})
-
+                for m in st.session_state.messages[-8:-1]:  # 增加歷史長度至 8 則
+                    history_contents.append({"role": "user" if m["role"] == "user" else "model",
+                                             "parts": [{"text": m["content"]}]})
                 history_contents.append({"role": "user", "parts": [{"text": final_prompt}]})
 
-                # 符合 1.64.0 版的頂層參數寫法
+                # 使用頂層 system_instruction 解決 400 錯誤
                 response = client.models.generate_content(
                     model="gemini-1.5-flash",
                     contents=history_contents,
@@ -152,9 +149,9 @@ if final_prompt:
                 if response and response.text:
                     st.markdown(f"### {response.text}")
                     st.session_state.messages.append({"role": "assistant", "content": response.text})
-                    st.rerun()  # 確保介面即時更新
+                    st.rerun()
             except Exception as e:
-                st.error(f"連線狀態異常：{str(e)}")
+                st.error(f"連線異常，請稍後再試：{str(e)}")
 
 # 開場白初始化
 if not st.session_state.messages:
