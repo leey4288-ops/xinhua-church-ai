@@ -7,19 +7,17 @@ from streamlit_mic_recorder import mic_recorder
 if "GEMINI_API_KEY" in st.secrets:
     API_KEY = st.secrets["GEMINI_API_KEY"]
 else:
+    # 提醒：請確保在 Streamlit Cloud Secrets 中設定此鍵值
     API_KEY = "您的備用Key"
 
-client = genai.Client(
-    api_key=API_KEY,
-    http_options={'api_version': 'v1'} # 強制避開 v1beta 的 404 問題
-)
+# 初始化 Client (1.64.0 版建議寫法)
+client = genai.Client(api_key=API_KEY)
 
-# --- 2. 初始化 Session State (增強防護) ---
+# --- 2. 初始化 Session State ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "selected_grid" not in st.session_state:
     st.session_state.selected_grid = None
-
 
 # --- 3. 靜態資料庫 (維持現狀) ---
 BIBLE_VERSES = [
@@ -49,37 +47,32 @@ with st.sidebar:
     role_choice = st.radio("選擇模式：", list(DETAILED_PROMPTS.keys()), key="role_radio")
 
     st.markdown("---")
-    # 這裡加入一個簡單的模式說明，幫助同工理解
     st.info(f"目前正在使用：**{role_choice}** 模式")
 
-    if role_choice == "門徒裝備":
-        st.subheader("🛠️ 門徒 12 格圖導覽")
-        grids = ["01 生命主權", "02 讀經靈修", "03 禱告生活", "04 團契生活", "05 聖潔生活", "06 見證分享",
-                 "07 事奉人生", "08 奉獻生活", "09 屬靈爭戰", "10 大使命", "11 肢體連結", "12 永恆盼望"]
+    # 教材選擇邏輯 (優化：合併按鈕邏輯)
+    grid_data = {
+        "門徒裝備": ["01 生命主權", "02 讀經靈修", "03 禱告生活", "04 團契生活", "05 聖潔生活", "06 見證分享",
+                     "07 事奉人生", "08 奉獻生活", "09 屬靈爭戰", "10 大使命", "11 肢體連結", "12 永恆盼望"],
+        "福音陪談": ["01 創造", "02 墮落", "03 審判", "04 律法", "05 基督", "06 救贖", "07 復活", "08 信心", "09 重生",
+                     "10 永生"]
+    }
+
+    if role_choice in grid_data:
+        st.subheader(f"🛠️ {role_choice}教材")
         cols = st.columns(2)
-        for i, title in enumerate(grids):
-            if cols[i % 2].button(title, key=f"btn_12_{i}", use_container_width=True):
-                st.session_state.selected_grid = {"type": "門徒", "title": title}
-                st.session_state.messages.append({"role": "assistant", "content": f"好的，我們來聊聊 **{title}**。"})
-                st.rerun()
-    elif role_choice == "福音陪談":
-        st.subheader("🎨 福音 10 格圖導覽")
-        grids = ["01 創造", "02 墮落", "03 審判", "04 律法", "05 基督", "06 救贖", "07 復活", "08 信心", "09 重生", "10 永生"]
-        cols = st.columns(2)
-        for i, title in enumerate(grids):
-            if cols[i % 2].button(title, key=f"btn_10_{i}", use_container_width=True):
-                st.session_state.selected_grid = {"type": "福音", "title": title}
-                st.session_state.messages.append({"role": "assistant", "content": f"好的，關於福音十格圖中的 **{title}**..."})
+        for i, title in enumerate(grid_data[role_choice]):
+            if cols[i % 2].button(title, key=f"btn_{role_choice}_{i}", use_container_width=True):
+                st.session_state.selected_grid = {"type": role_choice, "title": title}
+                st.session_state.messages.append({"role": "assistant", "content": f"好的，我們來探討 **{title}**。"})
                 st.rerun()
 
     st.markdown("---")
-    if st.sidebar.button("🔄 清除對話紀錄", use_container_width=True):
+    if st.button("🔄 清除對話紀錄", use_container_width=True):
         st.session_state.messages = []
         st.session_state.selected_grid = None
         st.rerun()
 
-# --- 5. 主頁面渲染 ---
-# 使用安全獲取方式
+# --- 5. 主頁面渲染 (加大字體) ---
 selected_grid = st.session_state.get("selected_grid")
 
 if len(st.session_state.messages) <= 1 or selected_grid:
@@ -91,12 +84,8 @@ if len(st.session_state.messages) <= 1 or selected_grid:
     }
     theme = UI_THEME[role_choice]
 
-    display_title = theme['title']
-    display_content = "可以直接點選左側教材，或在下方用「說」的跟我聊天喔！"
-
-    if selected_grid:
-        display_title = f"{selected_grid['title']}"
-        display_content = f"正在與您一同探討 **{selected_grid['title']}** 的真理。"
+    display_title = selected_grid['title'] if selected_grid else theme['title']
+    display_content = f"正在與您探討 **{selected_grid['title']}**。" if selected_grid else "可以直接點選教材，或在下方跟我說話喔！"
 
     st.markdown(f"""
     <div style="background-color: {theme['color']}; padding: 25px; border-radius: 15px; border-left: 8px solid {theme['border']}; margin-bottom: 20px;">
@@ -110,7 +99,6 @@ if len(st.session_state.messages) <= 1 or selected_grid:
     """, unsafe_allow_html=True)
 
 # --- 6. 對話顯示區 ---
-# 先顯示歷史紀錄，確保順序正確
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if msg["role"] == "assistant":
@@ -120,70 +108,56 @@ for msg in st.session_state.messages:
 
 st.markdown("---")
 
-# --- 7. 輸入區 (語音 + 文字) ---
-st.write("🎙️ **長輩語音輸入區**：")
-
-# 使用最基礎的位置參數呼叫，避開 Python 3.13 的具名參數解析問題
+# --- 7. 輸入區 (優化語音邏輯) ---
+st.write("🎙️ **長輩語音輸入：**")
+# key 加入隨機成分防止錄音元件緩存失效
 audio_data = mic_recorder(
-    "👉 點我開始說話",
-    "✅ 說完了，傳送",
-    f"mic_v5_{len(st.session_state.messages)}"
+    start_prompt="👉 點我開始說話",
+    stop_prompt="✅ 說完了，傳送",
+    use_browser_recognition=True,
+    key=f"mic_{len(st.session_state.messages)}"
 )
 
-# 1. 獲取文字框輸入
 input_text = st.chat_input("或在此輸入文字...", key="main_input")
+voice_text = audio_data.get('transcription') if audio_data else None
 
-# 2. 初始化語音文字變數
-voice_text = None
-if audio_data and isinstance(audio_data, dict):
-    # 使用 .get 安全讀取，避免 KeyMissing 錯誤
-    voice_text = audio_data.get('transcription')
-    if voice_text:
-        st.success(f"語音辨識成功：{voice_text}")
-
-# 3. 【核心修正】確保 final_prompt 在任何情況下都會被定義
 final_prompt = input_text or voice_text
 
-# 4. 處理對話發送
 if final_prompt:
     st.session_state.messages.append({"role": "user", "content": final_prompt})
-
-    # 立即渲染對話紀錄
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            if msg["role"] == "assistant":
-                st.markdown(f"### {msg['content']}")
-            else:
-                st.write(msg["content"])
+    with st.chat_message("user"):
+        st.write(final_prompt)
 
     with st.chat_message("assistant"):
-        try:
-            # 1. 準備指令字串
-            dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
+        with st.spinner("數位同工正在思考..."):
+            try:
+                # 組合系統指令
+                system_prompt = f"{DETAILED_PROMPTS[role_choice]}\n\n知識庫：{KNOWLEDGE_BASE[role_choice]}"
 
-            # 2. 【核心修正】
-            # 將 system_instruction 移出 config，作為 generate_content 的頂層參數
-            # 這是避開 "Unknown name systemInstruction" 的唯一方法
-            response = client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=[final_prompt],
-                config={
-                    "temperature": 0.7,
-                    # 在最新 Pydantic 模型中，將系統指令放在 config 內，但需確保名稱正確
-                    "system_instruction": dynamic_instruction
-                }
-            )
+                # 優化：傳入歷史訊息讓對話有連續性
+                history_contents = []
+                for m in st.session_state.messages[-6:-1]:  # 取最近三組對話
+                    history_contents.append({"role": m["role"], "parts": [{"text": m["content"]}]})
 
-            if response and response.text:
-                st.markdown(f"### {response.text}")
-                st.session_state.messages.append({"role": "assistant", "content": response.text})
-                st.rerun()
+                history_contents.append({"role": "user", "parts": [{"text": final_prompt}]})
 
-        except Exception as e:
-            st.error(f"連線狀態異常：{str(e)}")
+                # 符合 1.64.0 版的頂層參數寫法
+                response = client.models.generate_content(
+                    model="gemini-1.5-flash",
+                    contents=history_contents,
+                    system_instruction=system_prompt,
+                    config={"temperature": 0.7, "top_p": 0.95}
+                )
+
+                if response and response.text:
+                    st.markdown(f"### {response.text}")
+                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+                    st.rerun()  # 確保介面即時更新
+            except Exception as e:
+                st.error(f"連線狀態異常：{str(e)}")
 
 # 開場白初始化
-if len(st.session_state.messages) == 0:
+if not st.session_state.messages:
     greetings = {
         "福音陪談": "平安！我是新化教會的數位同工，很高興能陪您聊天。今天想聊聊信仰嗎？",
         "新朋友導覽": "歡迎來到新化長老教會！我是數位接待員，有什麼我可以幫您的嗎？",
