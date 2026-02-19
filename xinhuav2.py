@@ -154,24 +154,28 @@ if final_prompt:
 
     with st.chat_message("assistant"):
         try:
-            # 根據模式動態讀取指令
+            # 1. 確保指令字串存在
             dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
 
-            # 使用最新的 google-genai 呼叫方式 [cite: 7, 8]
+            # 2. 【核心修正】在模型名稱前補上 models/
+            # 這是為了解決某些 API 節點無法識別簡稱的問題
             response = client.models.generate_content(
-                model="gemini-1.5-flash",
-                config={"system_instruction": dynamic_instruction},
-                contents=[final_prompt]
+                model="models/gemini-1.5-flash",
+                config={
+                    "system_instruction": dynamic_instruction,
+                    "temperature": 0.7,
+                },
+                contents=[str(final_prompt)]  # 強制轉為字串避免型別錯誤
             )
 
-            if response.text:
+            if response and response.text:
                 st.markdown(f"### {response.text}")
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
-                # 強制刷新頁面以更新 UI
                 st.rerun()
 
         except Exception as e:
-            st.error(f"連線異常：{str(e)}")
+            # 輸出更詳細的錯誤資訊
+            st.error(f"連線狀態異常：{str(e)}")
 
 # 開場白初始化
 if len(st.session_state.messages) == 0:
