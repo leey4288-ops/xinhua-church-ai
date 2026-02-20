@@ -70,7 +70,7 @@ if user_input:
                     st.markdown(f"### {response.text}")
 
             except Exception as e:
-                # 給予簡潔提示，不讓 404/400 報錯嚇到使用者
+                # 給予簡潔提示，不讓報錯嚇到使用者
                 st.error("連線目前較為忙碌，請重新輸入一次。")
                 with st.expander("除錯資訊 (開發者參考)"):
                     st.code(str(e))
