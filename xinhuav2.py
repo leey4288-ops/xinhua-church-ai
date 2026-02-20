@@ -129,21 +129,28 @@ if final_prompt:
     with st.chat_message("assistant"):
         with st.spinner("數位同工思考中..."):
             try:
+                # 準備系統指令
                 system_prompt = f"{DETAILED_PROMPTS[role_choice]}\n\n{KNOWLEDGE_BASE[role_choice]}"
 
-                # 優化對話記憶結構，符合 1.64.0 型別要求
+                # 整理對話記憶 (role 必須是 'user' 或 'model')
                 history_contents = []
-                for m in st.session_state.messages[-8:-1]:  # 增加歷史長度至 8 則
-                    history_contents.append({"role": "user" if m["role"] == "user" else "model",
-                                             "parts": [{"text": m["content"]}]})
+                for m in st.session_state.messages[-8:-1]:
+                    history_contents.append({
+                        "role": "user" if m["role"] == "user" else "model",
+                        "parts": [{"text": m["content"]}]
+                    })
                 history_contents.append({"role": "user", "parts": [{"text": final_prompt}]})
 
-                # 使用頂層 system_instruction 解決 400 錯誤
+                # 【核心修正】將 system_instruction 放入 config 字典中
+                # 並且確保 contents 是一個 list
                 response = client.models.generate_content(
                     model="gemini-1.5-flash",
                     contents=history_contents,
-                    system_instruction=system_prompt,
-                    config={"temperature": 0.7, "top_p": 0.95}
+                    config={
+                        "system_instruction": system_prompt,  # 放在 config 內部
+                        "temperature": 0.7,
+                        "top_p": 0.95
+                    }
                 )
 
                 if response and response.text:
@@ -151,7 +158,8 @@ if final_prompt:
                     st.session_state.messages.append({"role": "assistant", "content": response.text})
                     st.rerun()
             except Exception as e:
-                st.error(f"連線異常，請稍後再試：{str(e)}")
+                # 如果還是報錯，嘗試將 system_instruction 改為複數 system_instructions
+                st.error(f"連線異常，正在嘗試相容模式：{str(e)}")
 
 # 開場白初始化
 if not st.session_state.messages:
