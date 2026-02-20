@@ -8,10 +8,10 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     API_KEY = "您的備用Key"
 
-# 初始化 Client
+# 初始化 Client (1.64.0 版建議寫法)
 client = genai.Client(api_key=API_KEY)
 
-# --- 2. 靜態資料庫 (維持現狀) ---
+# --- 2. 靜態資料庫 (減少 Session 負擔) ---
 BIBLE_VERSES = [
     "「應當一無掛慮，只要凡事藉著禱告、祈求，和感謝，將你們所要的告訴神。」— 腓立比書 4:6",
     "「你的話是我腳前的燈，是我路上的光。」— 詩篇 119:105",
@@ -39,20 +39,8 @@ with st.sidebar:
     role_choice = st.radio("選擇模式：", list(DETAILED_PROMPTS.keys()), key="role_radio")
 
     st.markdown("---")
-    st.info(f"模式：**{role_choice}**")
-
-    # 教材清單 (僅供參考，不記錄歷史)
-    grid_data = {
-        "門徒裝備": ["01 生命主權", "02 讀經靈修", "03 禱告生活", "04 團契生活", "05 聖潔生活", "06 見證分享",
-                     "07 事奉人生", "08 奉獻生活", "09 屬靈爭戰", "10 大使命", "11 肢體連結", "12 永恆盼望"],
-        "福音陪談": ["01 創造", "02 墮落", "03 審判", "04 律法", "05 基督", "06 救贖", "07 復活", "08 信心", "09 重生",
-                     "10 永生"]
-    }
-
-    if role_choice in grid_data:
-        st.subheader(f"📖 {role_choice}教材")
-        for title in grid_data[role_choice]:
-            st.write(f"• {title}")
+    st.info(f"目前模式：**{role_choice}**")
+    st.warning("⚠️ 為了保護隱私，本系統不會記錄您的對話，關閉網頁後紀錄即消失。")
 
 # --- 4. 主頁面渲染 ---
 daily_verse = random.choice(BIBLE_VERSES)
@@ -74,41 +62,43 @@ st.markdown(f"""
 
 st.markdown("---")
 
-# --- 5. 對話邏輯 (優化：單次問答，不佔用記憶) ---
+# --- 5. 對話邏輯 (優化：單次問答，不佔用 Session 記憶) ---
 
-# 文字輸入框
-user_input = st.chat_input("請輸入您的問題...")
+user_input = st.chat_input("請在此輸入您的問題...")
 
 if user_input:
-    # 顯示使用者問題 (僅當次顯示)
+    # 僅顯示當次輸入
     with st.chat_message("user"):
         st.write(user_input)
 
-    # 呼叫 AI
     with st.chat_message("assistant"):
-        with st.spinner("同工正在為您查詢..."):
+        with st.spinner("同工正在思考中..."):
             try:
+                # 組合系統指令
                 system_prompt = f"{DETAILED_PROMPTS[role_choice]}\n\n背景知識：{KNOWLEDGE_BASE[role_choice]}"
 
-                # 節省 API 耗損重點：
-                # 1. 不攜帶 history (contents 只放當前問題)
-                # 2. 限制輸出長度 (max_output_tokens)
+                # 【核心修正】針對 1.64.0 版 Pydantic 驗證的正確結構
+                # 1. 系統指令放入 config 字典內
+                # 2. 移除所有歷史紀錄節省消耗 (Stateless)
                 response = client.models.generate_content(
                     model="gemini-1.5-flash",
-                    contents=[user_input],
-                    system_instruction=system_prompt,
+                    contents=[user_input],  # 只傳送目前的這句話
                     config={
+                        "system_instruction": system_prompt,  # 正確的欄位名稱
                         "temperature": 0.7,
-                        "max_output_tokens": 400,  # 節省消耗：限制回覆長度
+                        "max_output_tokens": 400,  # 限制長度節省耗損
                         "top_p": 0.95
                     }
                 )
 
                 if response and response.text:
                     st.markdown(f"### {response.text}")
-            except Exception as e:
-                st.error(f"連線異常：{str(e)}")
 
+            except Exception as e:
+                # 若發生錯誤，輸出簡化訊息
+                st.error("連線暫時忙碌，請稍後再試。")
+                with st.expander("詳情 (工程除錯用)"):
+                    st.code(str(e))
 else:
-    # 預設歡迎語
-    st.write("🙏 平安！我是教會數位同工，請問有什麼我可以幫您的嗎？")
+    # 初始狀態顯示歡迎語
+    st.write("🙏 平安！請問今天有什麼我可以幫您的嗎？")
