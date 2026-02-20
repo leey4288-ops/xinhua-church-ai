@@ -73,17 +73,17 @@ if user_input:
     with st.chat_message("assistant"):
         with st.spinner("同工正在思考中..."):
             try:
-                # 準備系統指令字串 (維持單一字串)
+                # 準備系統指令字串
                 dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n背景知識：{KNOWLEDGE_BASE[role_choice]}"
 
-                # 【最終修正重點】
-                # 1. system_instruction 改為單數，且移出 config，與 model 平級
-                # 2. contents 只放 [user_input]，確保不帶歷史紀錄，節省 API 耗損
+                # 【核心修正】符合 1.64.0 版 Pydantic 驗證的結構
+                # 1. contents 只放當前輸入 [user_input]，達成「不保留紀錄」與「節省 API 耗損」
+                # 2. system_instructions 必須是複數且為 List [字串]
                 response = client.models.generate_content(
                     model="gemini-1.5-flash",
                     contents=[user_input],
-                    system_instruction=dynamic_instruction,  # 移到最外層作為直接參數
                     config={
+                        "system_instructions": [dynamic_instruction],
                         "temperature": 0.7,
                         "max_output_tokens": 400,  # 限制長度節省耗損
                         "top_p": 0.95
@@ -95,5 +95,5 @@ if user_input:
 
             except Exception as e:
                 st.error("連線異常，請稍後再試。")
-                with st.expander("詳細錯誤 (除錯用)"):
+                with st.expander("除錯資訊"):
                     st.code(str(e))
