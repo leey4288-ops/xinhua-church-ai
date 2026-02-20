@@ -73,17 +73,18 @@ if user_input:
     with st.chat_message("assistant"):
         with st.spinner("同工正在思考中..."):
             try:
-                # 準備系統指令字串
-                dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n背景知識：{KNOWLEDGE_BASE[role_choice]}"
+                # 1. 準備系統指令與知識庫
+                instruction = f"{DETAILED_PROMPTS[role_choice]}\n背景知識：{KNOWLEDGE_BASE[role_choice]}"
 
-                # 【核心修正】符合 1.64.0 版 Pydantic 驗證的結構
-                # 1. contents 只放當前輸入 [user_input]，達成「不保留紀錄」與「節省 API 耗損」
-                # 2. system_instructions 必須是複數且為 List [字串]
+                # 2. 【核心優化】採用「指令+問題」合併法 (最穩定，不報錯)
+                # 這種寫法不使用 system_instruction 參數，完全避開 Pydantic 驗證錯誤
+                # contents 僅包含當前問題，不帶歷史紀錄，達成「不保留紀錄」且「節省 API 耗損」
+                prompt_with_context = f"指令：{instruction}\n\n使用者問題：{user_input}"
+
                 response = client.models.generate_content(
                     model="gemini-1.5-flash",
-                    contents=[user_input],
+                    contents=[prompt_with_context],
                     config={
-                        "system_instructions": [dynamic_instruction],
                         "temperature": 0.7,
                         "max_output_tokens": 400,  # 限制長度節省耗損
                         "top_p": 0.95
@@ -94,6 +95,6 @@ if user_input:
                     st.markdown(f"### {response.text}")
 
             except Exception as e:
-                st.error("連線異常，請稍後再試。")
-                with st.expander("除錯資訊"):
+                st.error("目前連線忙碌，請稍後再試。")
+                with st.expander("詳細錯誤 (Debug 用)"):
                     st.code(str(e))
