@@ -29,7 +29,7 @@ with st.sidebar:
     st.image("https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=1000", caption="新化長老教會")
     st.title("⛪ 服事選單")
     role_choice = st.radio("選擇模式：", list(DETAILED_PROMPTS.keys()), key="role_radio")
-
+    
     st.markdown("---")
     st.info(f"模式：**{role_choice}**")
     st.warning("⚠️ 系統不會記錄您的詢問，保護隱私。")
@@ -54,21 +54,21 @@ if user_input:
                 # 【恢復核心穩定性：合併指令法】
                 # 將身分設定與知識庫直接併入 Prompt，避開 system_instruction 參數報錯
                 prompt_combined = f"指令：{DETAILED_PROMPTS[role_choice]}\n背景知識：{KNOWLEDGE_BASE[role_choice]}\n\n問題：{user_input}"
-
+                
                 # contents 僅包含當前組合好的文字，達成「不保留紀錄」且「節省 API 耗損」
                 response = client.models.generate_content(
-                    model="gemini-1.5-flash",
+                    model="gemini-1.5-flash", 
                     contents=[prompt_combined],
                     config={
                         "temperature": 0.7,
-                        "max_output_tokens": 400,  # 節省消耗：限制回覆長度
+                        "max_output_tokens": 400, # 節省消耗：限制回覆長度
                         "top_p": 0.95
                     }
                 )
 
                 if response and response.text:
                     st.markdown(f"### {response.text}")
-
+                
             except Exception as e:
                 # 給予簡潔提示，不讓報錯嚇到使用者
                 st.error("連線目前較為忙碌，請重新輸入一次。")
