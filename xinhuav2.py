@@ -8,8 +8,11 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     API_KEY = "您的備用Key"
 
-# 初始化 Client (1.64.0 版建議寫法)
-client = genai.Client(api_key=API_KEY)
+# --- 1. 初始化 Client (強制指定穩定版 API v1) ---
+client = genai.Client(
+    api_key=API_KEY,
+    http_options={'api_version': 'v1'}
+)
 
 # --- 2. 靜態資料庫 (減少 Session 負擔) ---
 BIBLE_VERSES = [
@@ -67,26 +70,24 @@ st.markdown("---")
 user_input = st.chat_input("請在此輸入您的問題...")
 
 if user_input:
-    # 僅顯示當次輸入
     with st.chat_message("user"):
         st.write(user_input)
 
     with st.chat_message("assistant"):
         with st.spinner("同工正在思考中..."):
             try:
-                # 組合系統指令
                 system_prompt = f"{DETAILED_PROMPTS[role_choice]}\n\n背景知識：{KNOWLEDGE_BASE[role_choice]}"
 
-                # 【核心修正】針對 1.64.0 版 Pydantic 驗證的正確結構
-                # 1. 系統指令放入 config 字典內
-                # 2. 移除所有歷史紀錄節省消耗 (Stateless)
+                # 執行 API 呼叫
+                # 1. contents 只放當前問題，不帶歷史紀錄，達成「不保留詢問」且「節省消耗」
+                # 2. system_instruction 放入 config 以符合 1.64.0 版 Pydantic 規範
                 response = client.models.generate_content(
                     model="gemini-1.5-flash",
-                    contents=[user_input],  # 只傳送目前的這句話
+                    contents=[user_input],
                     config={
-                        "system_instruction": system_prompt,  # 正確的欄位名稱
+                        "system_instruction": system_prompt,
                         "temperature": 0.7,
-                        "max_output_tokens": 400,  # 限制長度節省耗損
+                        "max_output_tokens": 400,  # 限制長度以節省 API 耗損
                         "top_p": 0.95
                     }
                 )
@@ -95,10 +96,7 @@ if user_input:
                     st.markdown(f"### {response.text}")
 
             except Exception as e:
-                # 若發生錯誤，輸出簡化訊息
-                st.error("連線暫時忙碌，請稍後再試。")
-                with st.expander("詳情 (工程除錯用)"):
+                st.error("目前連線忙碌，請稍後再試。")
+                # 除錯資訊改為折疊顯示，不影響一般同工使用
+                with st.expander("除錯資訊"):
                     st.code(str(e))
-else:
-    # 初始狀態顯示歡迎語
-    st.write("🙏 平安！請問今天有什麼我可以幫您的嗎？")
