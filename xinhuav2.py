@@ -1,6 +1,6 @@
 import random
 import streamlit as st
-import google.generativeai as genai
+from google import genai  # 修正這行，對應 google-genai 套件
 
 # --- 1. 安全讀取 API KEY ---
 if "GEMINI_API_KEY" in st.secrets:
@@ -150,3 +150,4 @@ if len(st.session_state.messages) == 0:
                  "門徒裝備": "弟兄姊妹平安！今天想學習哪一部分的教材？"}
     st.session_state.messages.append({"role": "assistant", "content": greetings[role_choice]})
     st.rerun()
+
