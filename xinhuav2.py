@@ -1,6 +1,15 @@
 import time
-import streamlit as st
 from google import genai
+import streamlit as st
+
+client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+
+response = client.models.generate_content(
+    model="gemini-2.0-flash",
+    contents="請說平安"
+)
+
+st.write(response.text)
 
 # =====================================
 # 安全讀取 API KEY
@@ -103,7 +112,7 @@ if prompt:
 """
 
                 response = client.models.generate_content(
-                    model="gemini-1.5-flash",
+                    model="gemini-2.0-flash",
                     contents=full_prompt
                 )
 
