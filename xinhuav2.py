@@ -8,11 +8,11 @@ if "GEMINI_API_KEY" in st.secrets:
 else:
     API_KEY = "您的備用Key"
 
-# 【關鍵修正 1】改用最簡潔的 Client 初始化，移除 api_version 指定
-# 讓最新的 SDK 1.64.0 自動根據模型名稱選擇正確路徑
+# --- 2. 初始化 Client ---
+# 移除所有 http_options 讓 SDK 自動處理連線
 client = genai.Client(api_key=API_KEY)
 
-# --- 2. 靜態資料庫 (維持現狀) ---
+# --- 3. 靜態資料庫 (維持現狀) ---
 KNOWLEDGE_BASE = {
     "福音陪談": "【福音 10 格圖】1.創造 2.墮落 3.審判 4.律法 5.基督 6.救贖 7.復活 8.信心 9.重生 10.永生。",
     "門徒裝備": "【門徒 12 格圖】1.生命主權 2.讀經靈修 3.禱告生活 4.團契生活 5.聖潔生活 6.見證分享 7.事奉人生 8.奉獻生活 9.屬靈爭戰 10.大使命 11.肢體連結 12.永恆盼望。",
@@ -25,43 +25,42 @@ DETAILED_PROMPTS = {
     "門徒裝備": "你現在是『新化教會-門徒裝備助手』。鼓勵信徒扎根真理。"
 }
 
-# --- 3. 側邊欄 ---
+# --- 4. 側邊欄 ---
 with st.sidebar:
     st.image("https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=1000", caption="新化長老教會")
     st.title("⛪ 服事選單")
     role_choice = st.radio("選擇模式：", list(DETAILED_PROMPTS.keys()), key="role_radio")
     st.markdown("---")
     st.info(f"模式：**{role_choice}**")
-    st.warning("⚠️ 系統不會記錄您的詢問，保護隱私。")
+    st.warning("⚠️ 系統不會記錄您的詢問紀錄。")
 
-# --- 4. 主畫面渲染 ---
-st.markdown(f"### ⛪ {role_choice}")
-st.write("請在下方輸入問題，數位同工將竭誠為您服務。")
+# --- 5. 主畫面 ---
+st.markdown(f"### ⛪ 目前模式：{role_choice}")
+st.write("請在下方輸入您的問題。")
 st.markdown("---")
 
-# --- 5. 對話邏輯 (無狀態、省 Token、不留紀錄) ---
-user_input = st.chat_input("請在此輸入您的問題...")
+# --- 6. 對話邏輯 (無狀態、省耗損、不留紀錄) ---
+user_input = st.chat_input("請輸入問題...")
 
 if user_input:
-    # 顯示使用者問題 (僅當次)
     with st.chat_message("user"):
         st.write(user_input)
 
     with st.chat_message("assistant"):
-        with st.spinner("同工正在思考中..."):
+        with st.spinner("同工正在思考..."):
             try:
-                # 【關鍵修正 2】指令合併法
-                # 將身分設定與問題合併，不使用容易報錯的 system_instruction 參數
-                full_prompt = f"指令：{DETAILED_PROMPTS[role_choice]}\n知識庫：{KNOWLEDGE_BASE[role_choice]}\n\n使用者問題：{user_input}"
+                # 【終極優化】指令合併法
+                # 1. 徹底不使用 system_instruction 參數，避開 400/404 錯誤
+                # 2. 將指令直接與問題合併，確保 AI 依然知道自己的身分
+                prompt_combined = f"【身分設定】{DETAILED_PROMPTS[role_choice]}\n【參考知識】{KNOWLEDGE_BASE[role_choice]}\n\n【使用者問題】{user_input}"
 
-                # 【關鍵修正 3】模型名稱改為最簡稱 "gemini-1.5-flash"
-                # 配合 client 自動偵測，這在 1.64.0 版是最通用的寫法
+                # 3. contents 只傳送目前的這句話，不帶歷史，省 API 耗損且不留紀錄
                 response = client.models.generate_content(
                     model="gemini-1.5-flash",
-                    contents=[full_prompt],  # 列表包裝字串符合型別要求
+                    contents=[prompt_combined],
                     config={
                         "temperature": 0.7,
-                        "max_output_tokens": 400,  # 節省消耗：限制回覆長度
+                        "max_output_tokens": 400,  # 限制長度省 Token
                         "top_p": 0.95
                     }
                 )
