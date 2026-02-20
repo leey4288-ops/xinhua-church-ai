@@ -74,18 +74,18 @@ if user_input:
         with st.spinner("同工正在思考中..."):
             try:
                 # 準備系統指令字串
-                system_prompt = f"{DETAILED_PROMPTS[role_choice]}\n\n背景知識：{KNOWLEDGE_BASE[role_choice]}"
+                dynamic_instruction = f"{DETAILED_PROMPTS[role_choice]}\n\n背景知識：{KNOWLEDGE_BASE[role_choice]}"
 
-                # 【核心修正】
-                # 1. 將 system_instruction 移出 config，改為頂層參數
-                # 2. contents 僅包含當前 user_input (不帶 history，節省 API 耗損)
+                # 【核心修正】完全符合 1.64.0 版 Pydantic 驗證的結構
+                # 1. contents 僅包含當前 user_input (不帶歷史，節省 API 耗損與達到不保留紀錄)
+                # 2. system_instructions 必須是複數名，且格式為 [字串]
                 response = client.models.generate_content(
                     model="gemini-1.5-flash",
                     contents=[user_input],
-                    system_instruction=system_prompt,  # 移到這裡！
                     config={
+                        "system_instructions": [dynamic_instruction],
                         "temperature": 0.7,
-                        "max_output_tokens": 400,  # 限制長度節省耗損
+                        "max_output_tokens": 400,  # 限制長度以節省 API 耗損
                         "top_p": 0.95
                     }
                 )
@@ -95,5 +95,5 @@ if user_input:
 
             except Exception as e:
                 st.error("目前連線忙碌，請稍後再試。")
-                with st.expander("除錯資訊 (400 錯誤修正測試)"):
+                with st.expander("除錯資訊 (1.64.0 結構測試)"):
                     st.code(str(e))
