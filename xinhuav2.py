@@ -65,7 +65,7 @@ if user_input:
     }
 
     data = {
-        "model": "meta-llama/llama-3.1-8b-instruct:free",
+        "model": "openchat/openchat-7b:free",
         "messages": [
             {"role": "user", "content": prompt}
         ],
