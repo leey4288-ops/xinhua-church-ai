@@ -2,26 +2,23 @@ import streamlit as st
 import requests
 import time
 
-# =====================================
-# 基本設定
-# =====================================
 st.set_page_config(
     page_title="新化教會 AI 同工",
     page_icon="⛪"
 )
 
-# =====================================
-# 使用 OpenRouter API Key
-# =====================================
+# =============================
+# 讀取 API KEY
+# =============================
 try:
     API_KEY = st.secrets["OPENROUTER_API_KEY"]
 except:
     st.error("請在 Streamlit Cloud Secrets 設定 OPENROUTER_API_KEY")
     st.stop()
 
-# =====================================
-# 教會角色設定
-# =====================================
+# =============================
+# 角色設定
+# =============================
 ROLES = {
     "福音陪談": "你是溫柔、有愛心的福音陪談者。",
     "門徒裝備": "你是門徒裝備助手。",
@@ -34,9 +31,6 @@ KNOWLEDGE = {
     "新朋友導覽": "主日聚會 09:30 台南市新化區。"
 }
 
-# =====================================
-# Sidebar
-# =====================================
 role = st.sidebar.radio(
     "選擇模式",
     ["福音陪談", "門徒裝備", "新朋友導覽"]
@@ -44,15 +38,9 @@ role = st.sidebar.radio(
 
 st.title("⛪ 新化教會 AI 同工")
 
-# =====================================
-# 防止狂按
-# =====================================
 if "last_time" not in st.session_state:
     st.session_state.last_time = 0
 
-# =====================================
-# 使用者輸入
-# =====================================
 user_input = st.chat_input("請輸入您的問題")
 
 if user_input:
@@ -82,15 +70,15 @@ if user_input:
     }
 
     data = {
-        "model": "mistralai/mistral-7b-instruct:free",
+        "model": "google/gemma-7b-it",  # ⭐ 改成穩定模型
         "messages": [
             {"role": "user", "content": prompt}
-        ]
+        ],
+        "max_tokens": 800,
+        "temperature": 0.7
     }
-    
 
     try:
-
         response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
@@ -98,7 +86,6 @@ if user_input:
             timeout=30
         )
 
-        # 顯示錯誤狀態
         if response.status_code != 200:
             st.error(f"API錯誤: {response.status_code}")
             st.code(response.text)
@@ -106,14 +93,12 @@ if user_input:
 
         result = response.json()
 
-        reply = result["choices"][0]["message"]["content"]
+        reply = result.get("choices", [{}])[0].get("message", {}).get("content", "回應解析失敗")
 
     except Exception as e:
-
         reply = f"錯誤詳情: {str(e)}"
 
     st.chat_message("assistant").write(reply)
 
 else:
-
     st.write("🙏 平安，請輸入您的問題")
