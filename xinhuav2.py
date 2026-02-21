@@ -82,14 +82,12 @@ if user_input:
     }
 
     data = {
-        "model": "meta-llama/llama-3.1-8b-instruct:free",
+        "model": "mistralai/mistral-7b-instruct:free",
         "messages": [
-            {
-                "role": "user",
-                "content": prompt
-            }
+            {"role": "user", "content": prompt}
         ]
     }
+    
 
     try:
 
@@ -100,13 +98,19 @@ if user_input:
             timeout=30
         )
 
+        # 顯示錯誤狀態
+        if response.status_code != 200:
+            st.error(f"API錯誤: {response.status_code}")
+            st.code(response.text)
+            st.stop()
+
         result = response.json()
 
         reply = result["choices"][0]["message"]["content"]
 
     except Exception as e:
 
-        reply = "系統暫時忙碌，請稍後再試"
+        reply = f"錯誤詳情: {str(e)}"
 
     st.chat_message("assistant").write(reply)
 
