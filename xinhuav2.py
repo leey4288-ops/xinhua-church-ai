@@ -7,18 +7,13 @@ st.set_page_config(
     page_icon="⛪"
 )
 
-# =============================
-# 讀取 API KEY
-# =============================
+# API KEY
 try:
     API_KEY = st.secrets["OPENROUTER_API_KEY"]
 except:
-    st.error("請在 Streamlit Cloud Secrets 設定 OPENROUTER_API_KEY")
+    st.error("請設定 OPENROUTER_API_KEY")
     st.stop()
 
-# =============================
-# 角色設定
-# =============================
 ROLES = {
     "福音陪談": "你是溫柔、有愛心的福音陪談者。",
     "門徒裝備": "你是門徒裝備助手。",
@@ -33,7 +28,7 @@ KNOWLEDGE = {
 
 role = st.sidebar.radio(
     "選擇模式",
-    ["福音陪談", "門徒裝備", "新朋友導覽"]
+    list(ROLES.keys())
 )
 
 st.title("⛪ 新化教會 AI 同工")
@@ -70,7 +65,7 @@ if user_input:
     }
 
     data = {
-        "model": "google/gemma-7b-it",  # ⭐ 改成穩定模型
+        "model": "meta-llama/llama-3.1-8b-instruct:free",
         "messages": [
             {"role": "user", "content": prompt}
         ],
@@ -79,6 +74,7 @@ if user_input:
     }
 
     try:
+
         response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
@@ -87,18 +83,19 @@ if user_input:
         )
 
         if response.status_code != 200:
-            st.error(f"API錯誤: {response.status_code}")
-            st.code(response.text)
+            st.error(response.text)
             st.stop()
 
         result = response.json()
 
-        reply = result.get("choices", [{}])[0].get("message", {}).get("content", "回應解析失敗")
+        reply = result["choices"][0]["message"]["content"]
 
     except Exception as e:
-        reply = f"錯誤詳情: {str(e)}"
+
+        reply = str(e)
 
     st.chat_message("assistant").write(reply)
 
 else:
+
     st.write("🙏 平安，請輸入您的問題")
