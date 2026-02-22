@@ -19,11 +19,13 @@ except:
     st.error("請在 Streamlit Secrets 設定 HF_API_KEY")
     st.stop()
 
-# 使用免費聊天模型（穩定）
-API_URL = "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta"
+# ⭐ 新版 HuggingFace Router API
+MODEL_NAME = "HuggingFaceH4/zephyr-7b-beta"
+API_URL = f"https://router.huggingface.co/hf-inference/models/{MODEL_NAME}"
 
 headers = {
-    "Authorization": f"Bearer {HF_API_KEY}"
+    "Authorization": f"Bearer {HF_API_KEY}",
+    "Content-Type": "application/json"
 }
 
 # =====================================
@@ -42,24 +44,14 @@ KNOWLEDGE = {
 }
 
 # =====================================
-# Sidebar
+# UI
 # =====================================
-role = st.sidebar.radio(
-    "選擇模式",
-    list(ROLES.keys())
-)
-
+role = st.sidebar.radio("選擇模式", list(ROLES.keys()))
 st.title("⛪ 新化教會 AI 同工")
 
-# =====================================
-# 防止狂按
-# =====================================
 if "last_time" not in st.session_state:
     st.session_state.last_time = 0
 
-# =====================================
-# 使用者輸入
-# =====================================
 user_input = st.chat_input("請輸入您的問題")
 
 if user_input:
@@ -78,7 +70,7 @@ if user_input:
 背景資訊：
 {KNOWLEDGE[role]}
 
-請用溫暖、自然的方式回答以下問題：
+請用溫暖自然的方式回答：
 
 {user_input}
 """
@@ -86,28 +78,27 @@ if user_input:
     payload = {
         "inputs": prompt,
         "parameters": {
-            "max_new_tokens": 500,
+            "max_new_tokens": 400,
             "temperature": 0.7,
             "return_full_text": False
         }
     }
 
     try:
-
         with st.spinner("思考中..."):
-
             response = requests.post(
                 API_URL,
                 headers=headers,
                 json=payload,
-                timeout=90
+                timeout=120
             )
 
         result = response.json()
 
-        # 處理常見錯誤格式
-        if isinstance(result, dict) and "error" in result:
-            reply = f"API 錯誤：{result['error']}"
+        if response.status_code != 200:
+            reply = f"API 錯誤：{result}"
+        elif isinstance(result, dict) and "error" in result:
+            reply = f"模型錯誤：{result['error']}"
         else:
             reply = result[0]["generated_text"]
 
@@ -117,5 +108,4 @@ if user_input:
     st.chat_message("assistant").write(reply)
 
 else:
-
     st.write("🙏 平安，請輸入您的問題")
