@@ -96,14 +96,16 @@ if user_input:
         result = response.json()
 
         if response.status_code != 200:
-            reply = f"API 錯誤：{result}"
-        elif isinstance(result, dict) and "error" in result:
-            reply = f"模型錯誤：{result['error']}"
-        else:
-            reply = result[0]["generated_text"]
+            st.error(f"HTTP 錯誤碼: {response.status_code}")
+            st.code(response.text)
+            st.stop()
 
-    except Exception as e:
-        reply = f"系統錯誤：{str(e)}"
+        try:
+            result = response.json()
+        except Exception:
+            st.error("回傳不是 JSON 格式")
+            st.code(response.text)
+            st.stop()
 
     st.chat_message("assistant").write(reply)
 
