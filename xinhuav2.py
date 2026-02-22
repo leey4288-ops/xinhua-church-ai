@@ -1,36 +1,27 @@
 import streamlit as st
-import requests
+from openai import OpenAI
 import time
 
-# =====================================
+# ==============================
 # 基本設定
-# =====================================
+# ==============================
 st.set_page_config(
     page_title="新化教會 AI 同工",
     page_icon="⛪"
 )
 
-# =====================================
-# 讀取 HuggingFace API Key
-# =====================================
+# ==============================
+# 讀取 API KEY
+# ==============================
 try:
-    HF_API_KEY = st.secrets["HF_API_KEY"]
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 except:
-    st.error("請在 Streamlit Secrets 設定 HF_API_KEY")
+    st.error("請在 Streamlit Secrets 設定 OPENAI_API_KEY")
     st.stop()
 
-# ⭐ 新版 HuggingFace Router API
-MODEL_NAME = "HuggingFaceH4/zephyr-7b-beta"
-API_URL = f"https://router.huggingface.co/hf-inference/models/{MODEL_NAME}"
-
-headers = {
-    "Authorization": f"Bearer {HF_API_KEY}",
-    "Content-Type": "application/json"
-}
-
-# =====================================
+# ==============================
 # 教會角色設定
-# =====================================
+# ==============================
 ROLES = {
     "福音陪談": "你是溫柔、有愛心的福音陪談者。",
     "門徒裝備": "你是門徒裝備助手。",
@@ -43,9 +34,6 @@ KNOWLEDGE = {
     "新朋友導覽": "主日聚會 09:30 台南市新化區。"
 }
 
-# =====================================
-# UI
-# =====================================
 role = st.sidebar.radio("選擇模式", list(ROLES.keys()))
 st.title("⛪ 新化教會 AI 同工")
 
@@ -64,48 +52,33 @@ if user_input:
 
     st.chat_message("user").write(user_input)
 
-    prompt = f"""
+    system_prompt = f"""
 {ROLES[role]}
 
 背景資訊：
 {KNOWLEDGE[role]}
 
-請用溫暖自然的方式回答：
-
-{user_input}
+請用溫暖、自然、符合教會氛圍的方式回應。
 """
 
-    payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": 400,
-            "temperature": 0.7,
-            "return_full_text": False
-        }
-    }
-
     try:
+
         with st.spinner("思考中..."):
-            response = requests.post(
-                API_URL,
-                headers=headers,
-                json=payload,
-                timeout=120
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_input}
+                ],
+                temperature=0.7,
+                max_tokens=600
             )
 
-        result = response.json()
+        reply = response.choices[0].message.content
 
-        if response.status_code != 200:
-            st.error(f"HTTP 錯誤碼: {response.status_code}")
-            st.code(response.text)
-            st.stop()
-
-        try:
-            result = response.json()
-        except Exception:
-            st.error("回傳不是 JSON 格式")
-            st.code(response.text)
-            st.stop()
+    except Exception as e:
+        reply = f"系統錯誤：{str(e)}"
 
     st.chat_message("assistant").write(reply)
 
