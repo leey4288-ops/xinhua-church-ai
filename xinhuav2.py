@@ -1,9 +1,9 @@
-import streamlit as st
 from openai import OpenAI
 import time
-
+import streamlit as st
+st.write(st.secrets["OPENAI_API_KEY"][:10])  # 只顯示前 10 個字
 # ==============================
-# 基本設定
+# 頁面設定
 # ==============================
 st.set_page_config(
     page_title="新化教會 AI 同工",
@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # ==============================
-# 讀取 API KEY
+# 初始化 OpenAI 客戶端
 # ==============================
 try:
     client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
@@ -34,37 +34,42 @@ KNOWLEDGE = {
     "新朋友導覽": "主日聚會 09:30 台南市新化區。"
 }
 
+# ==============================
+# 側邊欄
+# ==============================
 role = st.sidebar.radio("選擇模式", list(ROLES.keys()))
 st.title("⛪ 新化教會 AI 同工")
 
+# 防止狂按
 if "last_time" not in st.session_state:
     st.session_state.last_time = 0
 
+# ==============================
+# 使用者輸入
+# ==============================
 user_input = st.chat_input("請輸入您的問題")
 
 if user_input:
-
+    # 防止短時間重複按
     if time.time() - st.session_state.last_time < 1:
         st.warning("請稍候")
         st.stop()
-
     st.session_state.last_time = time.time()
 
     st.chat_message("user").write(user_input)
 
+    # 組合系統提示
     system_prompt = f"""
 {ROLES[role]}
 
 背景資訊：
 {KNOWLEDGE[role]}
 
-請用溫暖、自然、符合教會氛圍的方式回應。
+請用溫暖、自然、符合教會氛圍的方式回應：
 """
 
     try:
-
         with st.spinner("思考中..."):
-
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
@@ -74,7 +79,6 @@ if user_input:
                 temperature=0.7,
                 max_tokens=600
             )
-
         reply = response.choices[0].message.content
 
     except Exception as e:
