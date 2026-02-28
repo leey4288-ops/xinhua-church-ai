@@ -5,13 +5,22 @@ import streamlit as st
 st.write(st.secrets["OPENAI_API_KEY"][:10])  # 只顯示前 10 個字
 
 # ==============================
+# 置中 Logo
+# ==============================
+col1, col2, col3 = st.columns([1,2,1])
+with col2:
+    st.image("logo.png", width=150)
+
+# ==============================
 # 頁面設定
 # ==============================
 st.set_page_config(
     page_title="新化教會 AI 同工",
-    page_icon="logo.png"
+ )
 
-)
+
+
+
 
 # ==============================
 # 初始化 OpenAI 客戶端
