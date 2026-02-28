@@ -22,10 +22,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.markdown(
-    "<p style='text-align:center;'>🙏 平安，請輸入您的問題</p>",
-    unsafe_allow_html=True
-)
 
 
 
