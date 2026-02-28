@@ -138,7 +138,7 @@ KNOWLEDGE = {
 # 側邊欄
 # ==============================
 role = st.sidebar.radio("選擇模式", list(ROLES.keys()))
-st.title("⛪ 新化教會 AI 同工")
+
 
 # 防止狂按
 if "last_time" not in st.session_state:
