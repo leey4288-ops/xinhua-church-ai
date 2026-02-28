@@ -8,7 +8,7 @@ st.write(st.secrets["OPENAI_API_KEY"][:10])  # 只顯示前 10 個字
 # ==============================
 st.set_page_config(
     page_title="新化教會 AI 同工",
-    page_icon="⛪"
+    page_icon=""logo.png""
 )
 
 # ==============================
